@@ -1,0 +1,114 @@
+---
+title: "Simulasi Model ARIMA"
+author: "Setyo Tirta Abimanyu"
+date: ""
+output: pdf_document
+---
+# Pendahuluan
+
+Simulasi Model ARIMA dilakukan dengan tujuan untuk mengetahui apakah estimasi parameter yang didapatkan akan mendekati dengan parameter sesungguhnya apabila data yang dimiliki semakin banyak. Pada projek ini, akan dilakukan simulasi untuk model ARIMA (9,0,5) yang didefinisikan sebagai berikut
+$$Y_t = \phi_1 Y_{t-1} + \phi_2 Y_{t-2} + \cdots + \phi_9 Y_{t-9} - \theta_1 e_{t-1} - \cdots - \theta_5 e_{t-5} + e_t$$
+Dimana $e_i$ berdistribusi $N(0,\sigma_{\epsilon}^2)$.
+
+# Kestasioneran
+Pandang persamaan bagian AR dari persamaan diatas, kita definisikan persamaan karakteristik sebagai berikut
+$$\Phi(x) = 1 - \phi_1x - \phi_2 x^2 - \cdots - \phi_9 x^9$$
+
+Syarat kestationeran akan tercapai ketika akar dari persamaan karakteristik diatas bernilai mutlak kurang dari 1. Maka kita definisikan parameter untuk model ARIMA(9,0,5) sebagai berikut:
+$$\mathbf{q} = (0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09,0.65, -0.15, 0.25,0.35, 0.33)$$
+
+
+# Error
+Pada simulasi ini, harapan kita adalah semakin banyak data historis (T) yang dimiliki, semakin dekat taksiran parameter $\mathbf{\hat{q}}_T$ mendekati parameter $\mathbf{q}$. Untuk menghitung seberapa kecil error yang didapat, akan digunakan rumus
+$$\text{MSE} = \dfrac{1}{T} \sum_{i = 1}^T|| \mathbf{\hat{q}}_T - \mathbf{q}||^2$$
+dimana untuk $T \rightarrow \infty$ harapannya nilai MSE akan semakin kecil.
+
+
+# Importing Library
+
+```{r, warning=FALSE}
+library(stats)
+library(forecast)
+library(tseries)
+library(data.table)
+library(knitr) 
+```
+
+# Simulation Plot
+Berikut merupakan simulasi dari data ARIMA yang dibangun untuk beberapa nilai $T$.
+
+```{r, fig.height = 4, fig.width = 8}
+set.seed(10120095)
+
+
+# Definisikan Nilai Parameter
+ar_coeff <- c(0.01,0.02,0.03,
+              0.04,0.05,0.06,
+              0.07, 0.08, 0.09)
+ma_coeff <- c(0.65, -0.15, 0.25,
+                    0.35, 0.33)
+
+# Plot Simulasi untuk nilai T berbeda
+for (T in c(50,100,200,1000)){
+ model <- list(order = c(9,0,5), ar = ar_coeff, ma = ma_coeff)
+  data_arima <- arima.sim(model = model, n = T)
+
+  ts.plot(data_arima, type  = "l",
+     col = "blue", lwd = "2",
+     xlab = "T", ylab = expression(Y[t]),
+     main = paste("Simulation ARIMA (9,0,5) with T = " ,T))
+  
+  # Membuat garis rataan
+  abline(h = mean(data_arima), lwd = 2, lty = 2,
+         col = "red")
+}
+
+```
+
+# Estimasi Parameter
+Selanjutnya akan dilakukan estimasi parameter untuk beberapa nilai $T$ yang berbeda. Untuk kasus ini akan digunakan nilai $T = 50,51, \cdots , 200$.
+
+```{r,fig.height = 4, fig.width = 8}
+set.seed(10120095)
+
+ar_coeff <- c(0.01,0.02,0.03,
+              0.04,0.05,0.06,
+              0.07, 0.08, 0.09)
+ma_coeff <- c(0.65, -0.15, 0.25,
+                    0.35, 0.33)
+
+param <- c(ar_coeff,ma_coeff)
+
+
+data_point <- c()
+error <- c()
+
+for (T in 50:200){
+  
+  data_point <- c(data_point, T)
+  model <- list(order = c(9,0,5), ar = ar_coeff, ma = ma_coeff)
+  data_arima <- arima.sim(model = model, n = T)
+  
+  suppressWarnings({
+    mod <- arima(data_arima, order = c(9,0,5))
+    est_coef <- coef(mod)
+  })
+  
+  est_param <- as.numeric(est_coef[1:14])
+  mse <-  1/T * ((sum((est_param - param)**2)))
+  
+  error <- c(error, mse)
+  
+}
+
+plot(data_point,error, bty = "l",
+     col = "red", lty = 1, lwd = 2,pch = 16,
+     xlab = "T", ylab = "Error",
+     main = paste("Convergence Rate for ", expression(q)))
+
+```
+
+
+# Kesimpulan
+
+Secara umum, semakin banyak $T$ maka nilai error nya semakin mengecil, walaupun terdapat beberapa $T$ yang nilai error nya lebih besar daripada $T$ sebelumnya (terjadi lonjakan). Jadi, kita dapat simpulkan bahwa semakin banyak data yang digunakan, nilai estimasi parameter akan semakin mendekati dengan nilai parameter asli.
